@@ -1,0 +1,197 @@
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/dts-v1/;
+
+#include "msm8939.dtsi"
+#include "msm8939-qrd-skuk.dtsi"
+//#include "dsi-panel-r63311_1080p_video.dtsi"
+#include "dsi-panel-hx8399a-1080p-video.dtsi" //chenjian modify for zx55q05
+#include "dsi-panel-otm1901a-1080p-video.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. MSM8939 QRD SKUK";
+	compatible = "qcom,msm8939-qrd-skuk", "qcom,msm8939-qrd", "qcom,msm8939", "qcom,qrd";
+	qcom,board-id = <0x1000b 5>, <0x2000b 5>;
+};
+
+&tlmm_pinmux {
+	tps65132-en-pin {
+		qcom,pins = <&gp 97>, <&gp 98>;/* xiesu mod yuanshi 97 98*/
+		qcom,num-grp-pins = <2>;
+		label = "tps65132_en_pins";
+		qcom,pin-func = <0>;
+
+		tps65132_en_default: en-default {
+			drive-strength = <2>;
+			bias-pull-down;
+		};
+	};
+};
+
+&i2c_0 { /* BLSP1 QUP2 */
+	tps65132@3e {
+		compatible = "ti,tps65132";
+		reg = <0x3e>;
+		i2c-pwr-supply = <&pm8916_l6>;
+		ti,en-gpio-lpm;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tps65132_en_default>;
+
+		regulators {
+			tps65132_pos: pos-boost {
+				regulator-name = "tps65132-pos";
+				regulator-min-microvolt = <5000000>;/*xiesu yuanshi=<5800000>*/
+				regulator-max-microvolt = <5000000>;
+				ti,discharge-enable;
+				ti,enable-time = <800>;
+				ti,current-limit = <200000>;
+				ti,en-gpio = <&msm_gpio 97 0>;
+			};
+
+			tps65132_neg: neg-boost {
+				regulator-name = "tps65132-neg";
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+				ti,discharge-enable;
+				ti,enable-time = <800>;
+				ti,current-limit = <40000>;
+				ti,en-gpio = <&msm_gpio 98 0>;
+			};
+		};
+	};
+};
+
+&i2c_4 {
+	smb1360_otg_supply: smb1360-chg-fg@14 {
+		compatible = "qcom,smb1360-chg-fg";
+		reg = <0x14>;
+		interrupt-parent = <&msm_gpio>;
+		interrupts = <62 2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&smb_int_default &pcb_check_default>;
+		qcom,stat-pulsed-irq;
+		qcom,chg-inhibit-disabled;
+		qcom,float-voltage-mv = <4350>;
+		qcom,fg-batt-capacity-mah = <3000>;
+		qcom,fg-cc-soc-coeff = <0x8176>;
+		qcom,thermistor-c1-coeff = <0x85EC>;
+		qcom,fg-cutoff-voltage-mv= <3400>;
+		qcom,iterm-ma = <200>;
+		qcom,charging-timeout = <1536>;
+		qcom,otg-batt-curr-limit = <1500>;
+		qcom,recharge-thresh-mv = <100>;
+		qcom,shdn-after-pwroff;
+		qcom,thermal-mitigation = <1500 700 600 0>;
+		qcom,fg-auto-recharge-soc = <99>;
+		qcom,empty-soc-disabled;
+		regulator-name = "smb1360_otg_vreg";
+//		qcom,awake-min-soc;
+		qcom,batt-profile-select;
+		qcom,smb1360-vadc = <&pm8916_vadc>;
+		qcom,batt-id-vref-uv = <1800000>;
+		qcom,batt-id-rpullup-kohm = <100>;
+		qcom,profile-a-rid-kohm = <33>;
+		qcom,profile-b-rid-kohm = <83>;
+		qcom,config-hard-thresholds;
+		qcom,hot-bat-decidegc = <550>;  
+		qcom,cold-bat-decidegc = <0>;     
+		qcom,rsense-10mhom;
+		qcom,fg-delta-soc = <1>;  
+		qcom,fg-soc-max = <100>;  
+		hipad,pcb-check = <&msm_gpio 108 0x00>;
+		hipad,pcb-check1 = <&msm_gpio 109 0x00>;
+	};
+};
+
+&pm8916_chg {
+	status = "ok";
+	qcom,use-external-charger;
+};
+
+/ {
+		zx55q05_batterydata: qcom,battery-data {
+		qcom,rpull-up-kohm = <100>;
+		qcom,vref-batt-therm = <1800000>;
+		/include/ "batterydata-zx55q05-4v35-3000mah.dtsi"
+	};
+};
+
+&pm8916_bms {
+	status = "ok";
+	qcom,battery-data = <&zx55q05_batterydata>;
+	/*qcom,disable-bms;*/
+};
+
+&mdss_dsi0 {
+	qcom,dsi-pref-prim-pan = <&dsi_otm1901a_1080p_video>;
+
+	vsp-supply = <&tps65132_pos>;
+	vsn-supply = <&tps65132_neg>;
+
+	qcom,ctrl-supply-entries {
+		/delete-node/ qcom,ctrl-supply-entry@0;
+	};
+
+	qcom,panel-supply-entries {
+		/delete-node/qcom,panel-supply-entry@0;
+
+		qcom,panel-supply-entry@2 {
+			reg = <2>;
+			qcom,supply-name = "vsp";
+			qcom,supply-min-voltage = <5000000>;/*xiesu yuanshi=5800000*/
+			qcom,supply-max-voltage = <5000000>;
+			qcom,supply-enable-load = <200>;
+			qcom,supply-disable-load = <0>;
+		};
+
+		qcom,panel-supply-entry@3 {
+			reg = <3>;
+			qcom,supply-name = "vsn";
+			qcom,supply-min-voltage = <5000000>;
+			qcom,supply-max-voltage = <5000000>;
+			qcom,supply-enable-load = <40>;
+			qcom,supply-disable-load = <0>;
+		};
+	};
+};
+/* xiesu del ,always add at dtsi
+&dsi_nt35596_1080p_skuk_video {
+	qcom,cont-splash-enabled;
+	qcom,esd-check-enabled;
+	qcom,mdss-dsi-pan-enable-dynamic-fps;
+	qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode";
+
+};
+xiesu end */
+/*xiesu add for LCD R63311 */
+&dsi_hx8399a_1080p_video {
+	qcom,cont-splash-enabled;
+	qcom,esd-check-enabled;
+	qcom,mdss-dsi-pan-enable-dynamic-fps;
+	qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode";
+};
+&dsi_otm1901a_1080p_video {
+	qcom,cont-splash-enabled;
+	qcom,esd-check-enabled;
+	qcom,mdss-dsi-pan-enable-dynamic-fps;
+	qcom,mdss-dsi-pan-fps-update = "dfps_immediate_porch_mode";
+};
+
+&usb_otg {
+       qcom,hsusb-otg-mode = <3>;
+       qcom,usbid-gpio = <&msm_gpio 110 0>;
+       pinctrl-names = "default";
+       pinctrl-0 = <&usbid_default>;
+       vbus_otg-supply = <&smb1360_otg_supply>;
+};
+
